@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TypedTag(しゅるいつきタグ)のデモ！</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Google Fonts for Cute Japanese Rounded Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Yusei+Magic&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Kiwi Maru', 'Yusei Magic', sans-serif;
+      background-color: #FFFDF9;
+      background-image: radial-gradient(#F5E6D3 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    /* ドラッグ中のカスタムスタイル */
+    .dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    /* ふわふわ揺れるアニメーション */
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-4px); }
+      100% { transform: translateY(0px); }
+    }
+    .float-animation {
+      animation: float 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 p-3 sm:p-6 flex flex-col items-center justify-start">
+
+  <!-- React Root -->
+  <div id="root" class="w-full max-w-6xl"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- アイテムのデータ (すべてひらがな、指定の16種類) ---
+    const ANIMALS = [
+      {
+        id: 'inu',
+        name: 'いぬ',
+        emoji: '🐶',
+        description: 'わんわん！おさんぽが大好きで、ひととなかよしになれるよ。',
+        tags: [
+          { key: 'なまえ', val: 'いぬ' },
+          { key: '色', val: 'ちゃいろ' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: '4ほん' },
+          { key: 'おおきさ', val: 'ふつう' },
+          { key: 'はやさ', val: 'ふつう' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'saru',
+        name: 'さる',
+        emoji: '🐒',
+        description: 'ウキキ！木登りがとくい。バナナをたべるのが大好きだよ。',
+        tags: [
+          { key: 'なまえ', val: 'さる' },
+          { key: '色', val: 'ちゃいろ' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: '2ほん' },
+          { key: 'おおきさ', val: 'ふつう' },
+          { key: 'はやさ', val: 'ふつう' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'hebi',
+        name: 'へび',
+        emoji: '🐍',
+        description: 'にょろにょろ。草むらをすべりながら、しずかに進むよ。',
+        tags: [
+          { key: 'なまえ', val: 'へび' },
+          { key: '色', val: 'みどり' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'ふつう' },
+          { key: 'はやさ', val: 'おそい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'akaitori',
+        name: 'あかいとり',
+        emoji: '🦜',
+        description: 'パタパタ！あかいはねがとってもきれいな、おしゃれな鳥だよ。',
+        tags: [
+          { key: 'なまえ', val: 'あかいとり' },
+          { key: '色', val: 'あか' },
+          { key: '好きな場所', val: 'そら' },
+          { key: 'あし', val: '2ほん' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'はやさ', val: 'はやい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'aoitori',
+        name: 'あおいとり',
+        emoji: '🦜',
+        // 緑に見えてしまっていた 190deg から、完全に青に変色する 240deg に修正！
+        filterClass: 'filter hue-rotate-[240deg] saturate-[1.8]',
+        description: 'パタパタ！しあわせをはこんでくれると言われている、青い鳥だよ。',
+        tags: [
+          { key: 'なまえ', val: 'あおいとり' },
+          { key: '色', val: 'あお' },
+          { key: '好きな場所', val: 'そら' },
+          { key: 'あし', val: '2ほん' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'はやさ', val: 'はやい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'penguin',
+        name: 'ぺんぎん',
+        emoji: '🐧',
+        description: 'よちよち。つめたい海を、まるで飛ぶようにすいすい泳ぐよ。',
+        tags: [
+          { key: 'なまえ', val: 'ぺんぎん' },
+          { key: '色', val: 'くろ' },
+          { key: '好きな場所', val: 'うみ' },
+          { key: 'あし', val: '2ほん' },
+          { key: 'おおきさ', val: 'ふつう' },
+          { key: 'はやさ', val: 'おそい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'kumo_cloud',
+        name: 'くも',
+        emoji: '☁️',
+        description: 'ふわふわ。お空に浮かんでいて、風にのって形が変わるよ。',
+        tags: [
+          { key: 'なまえ', val: 'くも' },
+          { key: '色', val: 'しろ' },
+          { key: '好きな場所', val: 'そら' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'おおきい' },
+          { key: 'はやさ', val: 'おそい' }
+        ]
+      },
+      {
+        id: 'kumo_spider',
+        name: 'くも',
+        emoji: '🕷️',
+        description: 'かさかさ。あしが８ほんあって、かっこいい巣をつくるよ。',
+        tags: [
+          { key: 'なまえ', val: 'くも' },
+          { key: '色', val: 'くろ' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: '8ほん' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'はやさ', val: 'ふつう' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'akaisakana',
+        name: 'あかいさかな',
+        emoji: '🐟',
+        filterClass: 'filter hue-rotate-[135deg] saturate-[1.8]', 
+        description: 'ぷくぷく。あかい体をひらひらさせて、海を泳ぐよ。',
+        tags: [
+          { key: 'なまえ', val: 'あかいさかな' },
+          { key: '色', val: 'あか' },
+          { key: '好きな場所', val: 'うみ' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'はやさ', val: 'はやい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'aoisakana',
+        name: 'あおいさかな',
+        emoji: '🐟',
+        description: 'ぷくぷく。きれいな青い海にとけこむような、かっこいい魚だよ。',
+        tags: [
+          { key: 'なまえ', val: 'あおいさかな' },
+          { key: '色', val: 'あお' },
+          { key: '好きな場所', val: 'うみ' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'はやさ', val: 'はやい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'iruka',
+        name: 'いるか',
+        emoji: '🐬',
+        description: 'ザバーン！あたまがよくて、大ジャンプをするのが得意だよ。',
+        tags: [
+          { key: 'なまえ', val: 'いるか' },
+          { key: '色', val: 'あお' },
+          { key: '好きな場所', val: 'うみ' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'おおきい' },
+          { key: 'はやさ', val: 'はやい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'ringo',
+        name: 'りんご',
+        emoji: '🍎',
+        description: 'シャキッ！あまくておいしい、真っ跨な実がなるくだものだよ。',
+        tags: [
+          { key: 'なまえ', val: 'りんご' },
+          { key: '色', val: 'あか' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'なにもの', val: 'くだもの' }
+        ]
+      },
+      {
+        id: 'banana',
+        name: 'ばなな',
+        emoji: '🍌',
+        description: 'むにゅ。あまくて栄養たっぷりな、きいろいくだものだよ。',
+        tags: [
+          { key: 'なまえ', val: 'ばなな' },
+          { key: '色', val: 'きいろ' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'なにもの', val: 'くだもの' }
+        ]
+      },
+      {
+        id: 'kani',
+        name: 'かに',
+        emoji: '🦀',
+        description: 'チョキチョキ！よこ歩きが得意で、大きなハサミをもっているよ。',
+        tags: [
+          { key: 'なまえ', val: 'かに' },
+          { key: '色', val: 'あか' },
+          { key: '好きな場所', val: 'うみ' },
+          { key: 'あし', val: '10ほん' },
+          { key: 'あし', val: '8ほん' },
+          { key: 'おおきさ', val: 'ちいさい' },
+          { key: 'はやさ', val: 'おそい' },
+          { key: 'なにもの', val: 'いきもの' }
+        ]
+      },
+      {
+        id: 'kuruma',
+        name: 'くるま',
+        emoji: '🚗',
+        description: 'ブブー！エンジンをかけて、道路を元気に走る乗り物だよ。',
+        tags: [
+          { key: 'なまえ', val: 'くるま' },
+          { key: '色', val: 'あか' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'おおきい' },
+          { key: 'はやさ', val: 'はやい' },
+          { key: 'なにもの', val: 'きかい' }
+        ]
+      },
+      {
+        id: 'ukiwa',
+        name: 'うきわ',
+        emoji: '🛟',
+        description: 'ぷかぷか。これがあれば、深いプールや海でもおよぐのが安心だよ。',
+        tags: [
+          { key: 'なまえ', val: 'うきわ' },
+          { key: '色', val: 'あお' },
+          { key: '好きな場所', val: 'うみ' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'ふつう' },
+          { key: 'はやさ', val: 'おそい' },
+          { key: 'なにもの', val: 'もの' }
+        ]
+      },
+      {
+        id: 'moai',
+        name: 'もあい',
+        emoji: '🗿',
+        description: 'イースター島にある、とっても大きな石でできたふしぎな像（ぞう）だよ。',
+        tags: [
+          { key: 'なまえ', val: 'もあい' },
+          { key: '色', val: 'はいいろ' },
+          { key: '好きな場所', val: 'りく' },
+          { key: 'あし', val: 'なし' },
+          { key: 'おおきさ', val: 'おおきい' },
+          { key: 'はやさ', val: 'おそい' },
+          { key: 'なにもの', val: 'もの' }
+        ]
+      }
+    ];
+
+    // --- タグの種類（キー）ごとの配色 ---
+    const TAG_COLORS = {
+      'なまえ': { bg: 'bg-teal-100 hover:bg-teal-200', text: 'text-teal-700', border: 'border-teal-300', dot: 'bg-teal-400' },
+      '色': { bg: 'bg-pink-100 hover:bg-pink-200', text: 'text-pink-700', border: 'border-pink-300', dot: 'bg-pink-400' },
+      '好きな場所': { bg: 'bg-emerald-100 hover:bg-emerald-200', text: 'text-emerald-700', border: 'border-emerald-300', dot: 'bg-emerald-400' },
+      'あし': { bg: 'bg-sky-100 hover:bg-sky-200', text: 'text-sky-700', border: 'border-sky-300', dot: 'bg-sky-400' },
+      'おおきさ': { bg: 'bg-purple-100 hover:bg-purple-200', text: 'text-purple-700', border: 'border-purple-300', dot: 'bg-purple-400' },
+      'はやさ': { bg: 'bg-amber-100 hover:bg-amber-200', text: 'text-amber-700', border: 'border-amber-300', dot: 'bg-amber-400' },
+      'なにもの': { bg: 'bg-rose-100 hover:bg-rose-200', text: 'text-rose-700', border: 'border-rose-300', dot: 'bg-rose-400' },
+    };
+
+    // 配列をランダムにシャッフルする関数
+    const shuffleArray = (array) => {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+
+    function App() {
+      const [searchTags, setSearchTags] = useState([]);
+      const [selectedAnimal, setSelectedAnimal] = useState(null);
+      const [draggingTag, setDraggingTag] = useState(null);
+      const [isDragOver, setIsDragOver] = useState(false);
+      const [guideMessage, setGuideMessage] = useState("右ペインのタグを上の検索窓に運んでね！文字を入れてさがすこともできるよ。");
+      
+      // サジェスト検索用のstate
+      const [inputValue, setInputValue] = useState('');
+      const [showSuggestions, setShowSuggestions] = useState(false);
+      const [focusedSuggestionIndex, setFocusedSuggestionIndex] = useState(-1); // キー選択用のインデックス
+
+      // 右ペイン用のソート＆シャッフル、昇降順設定
+      const [sortBy, setSortBy] = useState('shuffle'); // 'shuffle' | 'type' | 'label'
+      const [isAsc, setIsAsc] = useState(true); // 昇順 (true) / 降順 (false)
+      const [displayedTags, setDisplayedTags] = useState([]);
+
+      // 全てのユニークなタグを取得
+      const getAllUniqueTags = () => {
+        const tagMap = new Map();
+        ANIMALS.forEach(animal => {
+          animal.tags.forEach(tag => {
+            if (tag) {
+              const tagId = `${tag.key}:${tag.val}`;
+              if (!tagMap.has(tagId)) {
+                tagMap.set(tagId, tag);
+              }
+            }
+          });
+        });
+        return Array.from(tagMap.values());
+      };
+
+      const allUniqueTags = getAllUniqueTags();
+
+      // どうぶつ選択時のタグ一覧
+      const getActiveTags = () => {
+        if (selectedAnimal) {
+          return selectedAnimal.tags;
+        }
+        return allUniqueTags;
+      };
+
+      // タグのソート、シャッフル、昇降順切り替えを管理するエフェクト
+      useEffect(() => {
+        const activeTags = getActiveTags();
+        if (sortBy === 'shuffle') {
+          setDisplayedTags(shuffleArray(activeTags));
+        } else if (sortBy === 'type') {
+          const sorted = [...activeTags].sort((a, b) => a.key.localeCompare(b.key, 'ja'));
+          setDisplayedTags(isAsc ? sorted : sorted.reverse());
+        } else if (sortBy === 'label') {
+          const sorted = [...activeTags].sort((a, b) => a.val.localeCompare(b.val, 'ja'));
+          setDisplayedTags(isAsc ? sorted : sorted.reverse());
+        }
+      }, [selectedAnimal, sortBy, isAsc]);
+
+      // 検索条件に合致するアイテムのフィルタリング（AND検索）
+      const filteredAnimals = ANIMALS.filter(animal => {
+        if (searchTags.length === 0) return true;
+        return searchTags.every(sTag => 
+          animal.tags.some(aTag => aTag.key === sTag.key && aTag.val === sTag.val)
+        );
+      });
+
+      // --- タグの追加・削除 ---
+      const addSearchTag = (tag) => {
+        if (!tag) return;
+        const isExist = searchTags.some(t => t.key === tag.key && t.val === tag.val);
+        if (!isExist) {
+          setSearchTags([...searchTags, tag]);
+          setGuideMessage(`「${tag.key}:${tag.val}」をたしたよ！ ＆ でつながったよ。`);
+        } else {
+          setGuideMessage(`「${tag.key}:${tag.val}」はもう検索に入っているよ。`);
+        }
+      };
+
+      const removeSearchTag = (indexToRemove) => {
+        const removedTag = searchTags[indexToRemove];
+        if (removedTag) {
+          setSearchTags(searchTags.filter((_, idx) => idx !== indexToRemove));
+          setGuideMessage(`「${removedTag.key}:${removedTag.val}」をはずしたよ。`);
+        }
+      };
+
+      // タグオブジェクトを直接指定して検索から削除するヘルパー
+      const removeSearchTagDirect = (tag) => {
+        const index = searchTags.findIndex(sTag => sTag.key === tag.key && sTag.val === tag.val);
+        if (index !== -1) {
+          removeSearchTag(index);
+        }
+      };
+
+      const clearAllSearchTags = () => {
+        setSearchTags([]);
+        setGuideMessage("検索をクリアしたよ！");
+      };
+
+      // --- ドラッグ＆ドロップイベント ---
+      const handleDragStart = (e, tag) => {
+        setDraggingTag(tag);
+        e.dataTransfer.setData('application/json', JSON.stringify(tag));
+        e.dataTransfer.effectAllowed = 'copy';
+      };
+
+      const handleDragEnd = () => {
+        setDraggingTag(null);
+      };
+
+      const handleDragOver = (e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+      };
+
+      const handleDragLeave = () => {
+        setIsDragOver(false);
+      };
+
+      const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        try {
+          const dataStr = e.dataTransfer.getData('application/json');
+          if (dataStr) {
+            const tag = JSON.parse(dataStr);
+            addSearchTag(tag);
+          }
+        } catch (err) {
+          console.error("ドロップデータのパースに失敗しました", err);
+        }
+      };
+
+      // アイテム選択時の処理
+      const handleSelectAnimal = (animal) => {
+        if (selectedAnimal && selectedAnimal.id === animal.id) {
+          setSelectedAnimal(null);
+          setGuideMessage("選択をはずしたよ。右ペインにすべてのタグが表示されたよ。");
+        } else {
+          setSelectedAnimal(animal);
+          setGuideMessage(`「${animal.name}」をえらんだよ！右ペインにこの子のタグだけが表示されているよ。`);
+        }
+      };
+
+      // ソートハンドラー（再選択時は昇降順をトグル）
+      const handleSort = (type) => {
+        if (sortBy === type) {
+          setIsAsc(!isAsc);
+          setGuideMessage(`ならびかたを${!isAsc ? 'あいうえお順（のぼり）' : 'あいうえお逆順（くだり）'}にしたよ！`);
+        } else {
+          setSortBy(type);
+          setIsAsc(true);
+          setGuideMessage(type === 'type' ? 'しゅるい順にならべたよ！' : 'なまえ順にならべたよ！');
+        }
+      };
+
+      // ランダムシャッフルボタンのクリック処理
+      const handleManualShuffle = () => {
+        setSortBy('shuffle');
+        setDisplayedTags(shuffleArray(getActiveTags()));
+        setGuideMessage("タグをランダムに並べかえたよ！");
+      };
+
+      // サジェスト機能（部分一致フィルタリング）
+      const suggestions = allUniqueTags.filter(tag => {
+        if (!tag || !inputValue) return false;
+        const query = inputValue.toLowerCase();
+        
+        const keyMatch = tag.key.toLowerCase().includes(query);
+        const valMatch = tag.val.toLowerCase().includes(query);
+        const combinedMatch = `${tag.key}:${tag.val}`.toLowerCase().includes(query);
+        
+        const isAlreadyInSearch = searchTags.some(sTag => sTag.key === tag.key && sTag.val === tag.val);
+        
+        return (keyMatch || valMatch || combinedMatch) && !isAlreadyInSearch;
+      });
+
+      // 入力変更時にフォーカスインデックスを初期化する
+      useEffect(() => {
+        setFocusedSuggestionIndex(-1);
+      }, [inputValue]);
+
+      // キーボード操作用のハンドラー (下キー・上キーでサジェストを選択、Enterで決定)
+      const handleKeyDown = (e) => {
+        if (suggestions.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setFocusedSuggestionIndex(prev => {
+            const next = prev + 1;
+            return next >= suggestions.length ? 0 : next; // 下限から上限にループ
+          });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setFocusedSuggestionIndex(prev => {
+            const next = prev - 1;
+            return next < 0 ? suggestions.length - 1 : next; // 上限から下限にループ
+          });
+        } else if (e.key === 'Enter') {
+          if (focusedSuggestionIndex >= 0 && focusedSuggestionIndex < suggestions.length) {
+            e.preventDefault();
+            addSearchTag(suggestions[focusedSuggestionIndex]);
+            setInputValue('');
+            setFocusedSuggestionIndex(-1);
+            setShowSuggestions(false);
+          }
+        } else if (e.key === 'Escape') {
+          setShowSuggestions(false);
+          setFocusedSuggestionIndex(-1);
+        }
+      };
+
+      // サジェスト領域外をクリックしたら閉じる処理
+      useEffect(() => {
+        const handleClickOutside = (e) => {
+          const searchBar = document.getElementById('search-bar-container');
+          if (searchBar && !searchBar.contains(e.target)) {
+            setShowSuggestions(false);
+          }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }, []);
+
+      return (
+        <div className="flex flex-col gap-6 w-full">
+          
+          {/* シンプルで可愛いタイトル */}
+          <header className="text-center py-2">
+            <h1 className="text-3xl sm:text-4xl font-bold text-amber-600 drop-shadow-sm flex items-center justify-center gap-2">
+              <span>🌈</span> TypedTag(しゅるいつきタグ)のデモ！ <span>🔍</span>
+            </h1>
+          </header>
+
+          {/* ガイド吹き出し */}
+          <div className="bg-amber-100 border-2 border-amber-300 rounded-2xl p-3 text-center text-amber-900 shadow-sm flex items-center justify-center gap-3">
+            <span className="text-xl sm:text-2xl float-animation">💡</span>
+            <span className="font-medium text-xs sm:text-base">{guideMessage}</span>
+          </div>
+
+          {/* メインウィンドウ */}
+          <div className="bg-white border-4 border-amber-200 rounded-3xl shadow-xl overflow-hidden flex flex-col">
+            
+            {/* 検索窓 */}
+            <div className="bg-amber-100 border-b-4 border-amber-200 px-4 py-3 flex items-center gap-3 relative" id="search-bar-container">
+              
+              {/* 検索窓本体 */}
+              <div 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`w-full min-h-[50px] border-2 rounded-2xl flex flex-wrap items-center px-4 py-1.5 transition-all relative ${
+                  isDragOver 
+                    ? 'border-dashed border-sky-400 bg-sky-100/80 scale-[1.01]' 
+                    : draggingTag
+                      ? 'border-dashed border-amber-400 bg-amber-50'
+                      : 'border-amber-300 bg-amber-50/50'
+                }`}
+              >
+                {/* 虫眼鏡アイコン */}
+                <span className="text-lg mr-2 text-amber-600 flex items-center shrink-0">
+                  🔍
+                </span>
+
+                {/* 検索窓の中のタグ表示 ＋ 入力欄 */}
+                <div className="flex-1 flex flex-wrap items-center gap-1.5 min-w-[200px]">
+                  {searchTags.map((tag, idx) => {
+                    const style = TAG_COLORS[tag.key] || { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+                    return (
+                      <React.Fragment key={`${tag.key}-${tag.val}-${idx}`}>
+                        {idx > 0 && (
+                          <span className="text-slate-500 font-extrabold px-0.5 select-none animate-bounce">
+                            &
+                          </span>
+                        )}
+                        <div className={`flex items-center gap-1 px-2.5 py-0.5 text-xs rounded-full border-2 shadow-sm ${style.bg} ${style.text} ${style.border}`}>
+                          <span className="font-bold">{tag.key}</span>
+                          <span className="mx-0.5 font-black text-slate-800 text-[11px]">:</span>
+                          <span className="font-semibold">{tag.val}</span>
+                          <button 
+                            onClick={() => removeSearchTag(idx)}
+                            className="ml-1 bg-white/60 hover:bg-white rounded-full w-4 h-4 flex items-center justify-center font-bold text-[9px] text-slate-700"
+                            title="はずす"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+
+                  {/* テキスト入力インプット */}
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => {
+                      setInputValue(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={searchTags.length === 0 ? "ここにタグを運ぶか、文字を入力して & 検索！" : "タグを追加..."}
+                    className="bg-transparent border-none outline-none text-xs sm:text-sm text-slate-800 placeholder-slate-400 flex-1 min-w-[120px] py-1"
+                  />
+                </div>
+
+                {/* 右端のごみばこクリアボタン */}
+                {searchTags.length > 0 && (
+                  <button 
+                    onClick={clearAllSearchTags}
+                    className="ml-2 bg-red-100 hover:bg-red-200 border border-red-300 text-red-600 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all active:scale-95 shrink-0"
+                    title="クリアする"
+                  >
+                    🗑️ クリア
+                  </button>
+                )}
+
+                {/* サジェストドロップダウン */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-[102%] mt-1 z-50 bg-white border-2 border-amber-300 rounded-2xl shadow-xl max-h-[220px] overflow-y-auto p-2.5 flex flex-col gap-1 animate-fadeIn">
+                    <div className="text-[10px] text-slate-400 px-2 pb-1 border-b mb-1 select-none font-bold flex justify-between items-center">
+                      <span>💡 もしかしてこのタグ？（矢印キー「↓↑」で選んでEnterで決定）</span>
+                      <span className="bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded text-[9px]">キーボード操作OK</span>
+                    </div>
+                    {suggestions.map((tag, idx) => {
+                      if (!tag) return null;
+                      const style = TAG_COLORS[tag.key] || { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+                      const isFocused = idx === focusedSuggestionIndex;
+                      return (
+                        <button
+                          key={`suggest-${tag.key}-${tag.val}`}
+                          onClick={() => {
+                            addSearchTag(tag);
+                            setInputValue('');
+                            setShowSuggestions(false);
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-xl text-left transition-all border ${
+                            isFocused 
+                              ? 'bg-amber-100 border-amber-400 shadow-sm' 
+                              : 'bg-transparent border-transparent hover:bg-amber-50/60 hover:border-amber-200'
+                          }`}
+                        >
+                          <span className="text-xs sm:text-sm flex items-center">
+                            <span className={`w-2.5 h-2.5 rounded-full mr-2 shrink-0 ${style.dot || 'bg-gray-400'}`}></span>
+                            <span className={`font-bold ${style.text}`}>{tag.key}</span>
+                            <span className="mx-1.5 font-black text-slate-800 text-sm">:</span>
+                            <span className="font-semibold text-slate-700">{tag.val}</span>
+                          </span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
+                            isFocused ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {isFocused ? '決定 ↩' : '追加 ＋'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* ウィンドウメイン領域 */}
+            <div className="flex flex-row min-h-[500px] h-[600px] overflow-hidden w-full">
+              
+              {/* 左メインペイン：アイテムの表示エリア */}
+              <main className="flex-1 p-3 sm:p-5 bg-[#FCFBF7] border-r-4 border-amber-200 overflow-y-auto h-full">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-sm sm:text-base md:text-lg font-bold text-amber-800 flex items-center gap-1 sm:gap-2">
+                    🌳 みつかったアイテム 
+                    <span className="bg-amber-100 text-amber-800 text-[10px] sm:text-xs px-2 py-0.5 rounded-full border border-amber-300 font-medium whitespace-nowrap">
+                      {filteredAnimals.length} / {ANIMALS.length} 個
+                    </span>
+                  </h2>
+                  {selectedAnimal && (
+                    <button 
+                      onClick={() => setSelectedAnimal(null)}
+                      className="text-[10px] sm:text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 font-bold px-2.5 py-1 rounded-full transition-all"
+                    >
+                      選択解除 ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* 検索結果がゼロの場合 */}
+                {filteredAnimals.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center bg-amber-50/40 rounded-3xl border-2 border-dashed border-amber-200 h-full">
+                    <span className="text-4xl mb-3 animate-bounce">💦</span>
+                    <p className="text-sm sm:text-base font-bold text-amber-800">あてはまるアイテムがありません...</p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      ちがう「typedtag」を入れてみよう！
+                    </p>
+                    <button 
+                      onClick={clearAllSearchTags}
+                      className="mt-3 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition-all text-xs"
+                    >
+                      ぜんぶ表示する
+                    </button>
+                  </div>
+                ) : (
+                  // アイテムのグリッド
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 pb-12">
+                    {filteredAnimals.map((animal) => {
+                      const isSelected = selectedAnimal && selectedAnimal.id === animal.id;
+                      return (
+                        <div 
+                          key={animal.id}
+                          onClick={() => handleSelectAnimal(animal)}
+                          className={`bg-white rounded-2xl border-2 p-3 sm:p-4 flex flex-col items-center cursor-pointer transition-all duration-300 relative select-none ${
+                            isSelected 
+                              ? 'border-amber-500 bg-amber-50/80 shadow-md scale-[1.02] ring-2 ring-amber-300 ring-opacity-50' 
+                              : 'border-slate-100 hover:border-amber-300 hover:shadow-sm'
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="absolute -top-2.5 -right-1 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow animate-bounce">
+                              えらび中！
+                            </span>
+                          )}
+
+                          <div className={`text-4xl sm:text-5xl mb-2 filter drop-shadow ${animal.filterClass || ''}`}>
+                            {animal.emoji}
+                          </div>
+
+                          <h3 className="font-bold text-sm sm:text-base text-slate-800 mb-0.5">
+                            {animal.name}
+                          </h3>
+
+                          <p className="text-[10px] sm:text-xs text-slate-500 text-center line-clamp-2 h-7 sm:h-8 mb-2">
+                            {animal.description}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </main>
+
+              {/* 右ペイン：タグ一覧エリア */}
+              <aside className="w-56 sm:w-72 md:w-80 p-3 sm:p-5 bg-amber-50/30 flex flex-col gap-3 shrink-0 overflow-y-auto h-full border-l border-amber-200/50">
+                
+                {/* 右ペインヘッダーとソートボタンを統合 */}
+                <div className="shrink-0 pb-1 border-b border-amber-200 flex items-center justify-between gap-1">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-xs sm:text-sm">
+                      🏷️ {selectedAnimal ? 'えらんだ子のタグ' : '全タグ一覧'}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                      {selectedAnimal ? 'えらんだ子のタグだよ' : 'タグを運ぶか、クリックしてね！'}
+                    </p>
+                  </div>
+                  
+                  {/* すっきりまとまったソートボタン群 */}
+                  <div className="flex gap-1 shrink-0">
+                    <button
+                      onClick={() => handleSort('type')}
+                      className={`w-8 h-8 flex flex-col items-center justify-center rounded-lg border transition-all text-base ${
+                        sortBy === 'type'
+                          ? 'bg-amber-400 border-amber-500 text-amber-950 font-bold'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                      title="しゅるい順でおなじボタンを押すと昇降切り替え"
+                    >
+                      <span>📁</span>
+                      {sortBy === 'type' && (
+                        <span className="text-[7px] leading-none -mt-0.5">
+                          {isAsc ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleSort('label')}
+                      className={`w-8 h-8 flex flex-col items-center justify-center rounded-lg border transition-all text-base ${
+                        sortBy === 'label'
+                          ? 'bg-amber-400 border-amber-500 text-amber-950 font-bold'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                      title="なまえ順でおなじボタンを押すと昇降切り替え"
+                    >
+                      <span>🔤</span>
+                      {sortBy === 'label' && (
+                        <span className="text-[7px] leading-none -mt-0.5">
+                          {isAsc ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleManualShuffle}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all text-base ${
+                        sortBy === 'shuffle'
+                          ? 'bg-sky-100 border-sky-300 text-sky-800 font-bold'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                      title="ランダムにシャッフル"
+                    >
+                      🎲
+                    </button>
+                  </div>
+                </div>
+
+                {/* タグリスト */}
+                <div className="flex flex-col gap-1.5 pb-8">
+                  <div className="flex flex-wrap gap-1.5">
+                    {displayedTags.map((tag, index) => {
+                      if (!tag) return null;
+                      const isAlreadyInSearch = searchTags.some(sTag => sTag.key === tag.key && sTag.val === tag.val);
+                      const style = TAG_COLORS[tag.key] || { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+                      
+                      return (
+                        <div
+                          key={`tag-${tag.key}-${tag.val}-${index}`}
+                          draggable={!isAlreadyInSearch}
+                          onDragStart={(e) => handleDragStart(e, tag)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => {
+                            if (isAlreadyInSearch) {
+                              removeSearchTagDirect(tag);
+                            } else {
+                              addSearchTag(tag);
+                            }
+                          }}
+                          className={`group flex items-center gap-0.5 px-2.5 py-1 text-[11px] rounded-full border select-none transition-all duration-150 transform cursor-pointer ${
+                            isAlreadyInSearch
+                              ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-40 line-through scale-95 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
+                              : `${style.bg} ${style.text} ${style.border} hover:scale-[1.04] shadow-sm`
+                          }`}
+                          title={isAlreadyInSearch ? "クリックしてはずす" : "ドラッグまたはクリックで追加"}
+                        >
+                          <span className="font-bold">{tag.key}</span>
+                          <span className="mx-0.5 font-black text-slate-800 text-[11px]">:</span>
+                          <span className="font-semibold">{tag.val}</span>
+                          {isAlreadyInSearch ? (
+                            <span className="text-[9px] text-red-400 font-bold ml-1 opacity-60 group-hover:opacity-100">
+                              ✕
+                            </span>
+                          ) : (
+                            <span className="text-[8px] text-slate-400 group-hover:text-current ml-1 opacity-40 group-hover:opacity-100">
+                              ＋
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 選択解除時の全タグ復帰ボタン */}
+                {selectedAnimal && (
+                  <button 
+                    onClick={() => setSelectedAnimal(null)}
+                    className="mt-auto shrink-0 text-[10px] bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-800 font-bold py-2 px-3 rounded-lg text-center transition-all active:scale-95"
+                  >
+                    すべてのタグを表示する
+                  </button>
+                )}
+
+              </aside>
+
+            </div>
+
+          </div>
+
+        </div>
+      );
+    }
+
+    // Reactをレンダリング
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
